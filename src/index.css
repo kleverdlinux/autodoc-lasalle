@@ -75,6 +75,22 @@ body::-webkit-scrollbar,
   animation: toastSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes barGrowUp {
+  from {
+    transform: scaleY(0);
+    opacity: 0.3;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.chart-bar-enter {
+  transform-origin: bottom;
+  animation: barGrowUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
 /* Hoja A4 en vista previa */
 .a4-sheet {
   font-family: Arial, Helvetica, sans-serif;

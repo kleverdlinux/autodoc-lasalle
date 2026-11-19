@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { saveAs } from 'file-saver';
 import {
   Award,
@@ -28,12 +28,40 @@ interface DashboardBackupsProps {
   onNotify: (type: ToastType, title: string, description?: string) => void;
 }
 
-const SHORT_CAREER_LABEL: Record<string, string> = {
-  Enfermería: 'Enfermería',
-  Farmacia: 'Farmacia',
-  Fisioterapia: 'Fisioterapia',
-  Optometría: 'Optometría',
-  'Prótesis Dental': 'Prót. Dental',
+const CAREER_STYLE_MAP: Record<
+  string,
+  { short: string; gradient: string; glow: string; badge: string }
+> = {
+  Enfermería: {
+    short: 'Enfermería',
+    gradient: 'from-sky-400 to-blue-500',
+    glow: 'shadow-sky-400/40',
+    badge: 'text-sky-600',
+  },
+  Farmacia: {
+    short: 'Farmacia',
+    gradient: 'from-emerald-400 to-teal-500',
+    glow: 'shadow-emerald-400/40',
+    badge: 'text-emerald-600',
+  },
+  Fisioterapia: {
+    short: 'Fisioterapia',
+    gradient: 'from-indigo-400 to-violet-500',
+    glow: 'shadow-indigo-400/40',
+    badge: 'text-indigo-600',
+  },
+  Optometría: {
+    short: 'Optometría',
+    gradient: 'from-amber-400 to-orange-400',
+    glow: 'shadow-amber-400/40',
+    badge: 'text-amber-600',
+  },
+  'Prótesis Dental': {
+    short: 'Prót. Dental',
+    gradient: 'from-rose-400 to-pink-500',
+    glow: 'shadow-rose-400/40',
+    badge: 'text-rose-600',
+  },
 };
 
 export function DashboardBackups({
@@ -46,10 +74,19 @@ export function DashboardBackups({
 }: DashboardBackupsProps) {
   const [search, setSearch] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [hoveredBar, setHoveredBar] = useState<string | null>(null);
+  const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
+  const [chartsAnimated, setChartsAnimated] = useState(false);
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => {
+      setChartsAnimated(true);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, []);
 
   const stats = useMemo(() => computeDashboardStats(records), [records]);
 
-  // Asegura mostrar siempre las 5 carreras oficiales en el gráfico de barras
   const careerSeries = useMemo(() => {
     const map = new Map<string, number>();
     CARRERAS_OFICIALES.forEach((c) => map.set(c, 0));
@@ -58,25 +95,36 @@ export function DashboardBackups({
         map.set(item.carrera, (map.get(item.carrera) ?? 0) + item.cantidad);
       }
     });
-    return Array.from(map.entries()).map(([carrera, cantidad]) => ({
-      carrera,
-      label: SHORT_CAREER_LABEL[carrera] ?? carrera,
-      cantidad,
-    }));
+    const entries = Array.from(map.entries());
+    const totalCareerDocs = entries.reduce((acc, [, v]) => acc + v, 0);
+
+    return entries.map(([carrera, cantidad]) => {
+      const style = CAREER_STYLE_MAP[carrera] ?? {
+        short: carrera,
+        gradient: 'from-blue-400 to-indigo-500',
+        glow: 'shadow-blue-400/40',
+        badge: 'text-blue-600',
+      };
+      return {
+        carrera,
+        cantidad,
+        pct: totalCareerDocs > 0 ? Math.round((cantidad / totalCareerDocs) * 100) : 0,
+        ...style,
+      };
+    });
   }, [stats.porCarrera]);
 
   const maxBar = Math.max(1, ...careerSeries.map((c) => c.cantidad));
 
-  // Datos para el gráfico circular (Donut SVG) por tipo de documento
-  const donutSegments = useMemo(() => {
+  const donutData = useMemo(() => {
     const items = [
-      { label: 'Constancias', count: stats.totalConstancias, color: '#002b59' },
-      { label: 'Informes / Oficios', count: stats.totalOficios, color: '#f5b038' },
-      { label: 'Lotes Excel (ZIP)', count: stats.totalLotes, color: '#059669' },
-      { label: 'Plantillas Libres', count: stats.totalPersonalizados, color: '#6366f1' },
+      { label: 'Constancias', count: stats.totalConstancias, color: '#3b82f6' },
+      { label: 'Informes / Oficios', count: stats.totalOficios, color: '#f59e0b' },
+      { label: 'Lotes Excel (ZIP)', count: stats.totalLotes, color: '#10b981' },
+      { label: 'Plantillas Libres', count: stats.totalPersonalizados, color: '#8b5cf6' },
     ];
     const total = items.reduce((acc, i) => acc + i.count, 0);
-    const radius = 52;
+    const radius = 50;
     const circumference = 2 * Math.PI * radius;
     let offsetAcc = 0;
 
@@ -96,6 +144,8 @@ export function DashboardBackups({
 
     return { total, radius, circumference, segments };
   }, [stats]);
+
+  const activeDonutSegment = donutData.segments.find((s) => s.label === hoveredSegment) ?? null;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -162,12 +212,12 @@ export function DashboardBackups({
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Encabezado discreto del Dashboard con indicador de BD */}
+      {/* Encabezado del Dashboard con indicador de BD */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Dashboard Ejecutivo de Emisiones</h2>
           <p className="text-xs text-slate-500">
-            Métricas en tiempo real, gráficos estadísticos y copias de respaldo por documento.
+            Pasa el cursor sobre las barras o el anillo circular para explorar métricas detalladas.
           </p>
         </div>
         <span
@@ -184,8 +234,8 @@ export function DashboardBackups({
 
       {/* 4 Tarjetas KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[#002b59] text-white flex items-center justify-center shrink-0">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
             <BarChart3 className="w-6 h-6" />
           </div>
           <div>
@@ -197,8 +247,8 @@ export function DashboardBackups({
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
             <Award className="w-6 h-6" />
           </div>
           <div>
@@ -208,8 +258,8 @@ export function DashboardBackups({
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-100 text-[#002b59] flex items-center justify-center shrink-0">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center shrink-0">
             <FileCheck2 className="w-6 h-6" />
           </div>
           <div>
@@ -221,26 +271,26 @@ export function DashboardBackups({
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
             <Clock className="w-6 h-6" />
           </div>
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase">Tiempo Ahorrado</p>
-            <p className="text-2xl font-extrabold text-emerald-700">{horasTexto}</p>
+            <p className="text-2xl font-extrabold text-emerald-600">{horasTexto}</p>
             <p className="text-[11px] text-slate-400">Estimado (~12 min/doc manual)</p>
           </div>
         </div>
       </div>
 
-      {/* Dos Gráficos Estadísticos Lado a Lado */}
+      {/* Dos Gráficos Estadísticos Interactivos y Luminosos */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Gráfico 1: Barras Verticales por Carrera */}
+        {/* Gráfico 1: Barras Verticales Animadas por Carrera */}
         <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-xs p-6 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[#002b59]" />
+                <BarChart3 className="w-4 h-4 text-blue-600" />
                 Emisiones por Carrera Técnica
               </h3>
               <p className="text-xs text-slate-500">
@@ -249,39 +299,68 @@ export function DashboardBackups({
             </div>
           </div>
 
-          <div className="relative pt-4">
-            {/* Líneas horizontales de referencia */}
-            <div className="absolute inset-x-0 top-4 bottom-8 flex flex-col justify-between pointer-events-none">
+          <div className="relative pt-6">
+            {/* Líneas horizontales sutiles de guía */}
+            <div className="absolute inset-x-0 top-6 bottom-8 flex flex-col justify-between pointer-events-none">
               {[0, 1, 2, 3].map((line) => (
                 <div key={line} className="border-b border-dashed border-slate-200/80 w-full" />
               ))}
             </div>
 
-            <div className="relative z-10 grid grid-cols-5 gap-3 sm:gap-5 items-end h-44 px-2">
-              {careerSeries.map((item) => {
+            <div className="relative z-10 grid grid-cols-5 gap-3 sm:gap-5 items-end h-48 px-2">
+              {careerSeries.map((item, idx) => {
                 const heightPct =
-                  item.cantidad > 0 ? Math.max(16, Math.round((item.cantidad / maxBar) * 100)) : 6;
+                  item.cantidad > 0 ? Math.max(18, Math.round((item.cantidad / maxBar) * 100)) : 8;
+                const isHovered = hoveredBar === item.carrera;
+                const isDimmed = hoveredBar !== null && !isHovered;
+
                 return (
-                  <div key={item.carrera} className="flex flex-col items-center h-full justify-end">
-                    <span className="text-xs font-extrabold text-[#002b59] mb-1.5">
+                  <div
+                    key={item.carrera}
+                    onMouseEnter={() => setHoveredBar(item.carrera)}
+                    onMouseLeave={() => setHoveredBar(null)}
+                    className={`relative flex flex-col items-center h-full justify-end cursor-pointer transition-opacity duration-200 ${
+                      isDimmed ? 'opacity-45' : 'opacity-100'
+                    }`}
+                  >
+                    {/* Tooltip flotante con el cursor */}
+                    {isHovered && (
+                      <div className="absolute -top-9 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-lg bg-slate-800 text-white px-2.5 py-1 text-[11px] font-semibold shadow-lg pointer-events-none">
+                        {item.carrera}: {item.cantidad} ({item.pct}%)
+                      </div>
+                    )}
+
+                    <span
+                      className={`text-xs font-extrabold mb-1.5 transition-transform duration-200 ${
+                        isHovered ? `scale-125 ${item.badge}` : 'text-slate-700'
+                      }`}
+                    >
                       {item.cantidad}
                     </span>
-                    <div className="w-full max-w-[46px] h-32 flex items-end justify-center">
+
+                    <div className="w-full max-w-[48px] h-32 flex items-end justify-center">
                       <div
-                        title={`${item.carrera}: ${item.cantidad}`}
-                        className={`w-full rounded-t-xl transition-all duration-500 ${
+                        className={`chart-bar-enter w-full rounded-t-xl transition-all duration-300 ${
                           item.cantidad > 0
-                            ? 'bg-gradient-to-t from-[#002b59] via-[#003b75] to-[#f5b038] shadow-sm'
-                            : 'bg-slate-100'
+                            ? `bg-gradient-to-t ${item.gradient} shadow-md ${
+                                isHovered ? `scale-x-110 -translate-y-1 shadow-lg ${item.glow}` : ''
+                              }`
+                            : `bg-slate-100 ${isHovered ? 'bg-slate-200 scale-x-105' : ''}`
                         }`}
-                        style={{ height: `${heightPct}%` }}
+                        style={{
+                          height: chartsAnimated ? `${heightPct}%` : '4%',
+                          animationDelay: `${idx * 70}ms`,
+                        }}
                       />
                     </div>
+
                     <span
-                      className="mt-2 text-[11px] font-semibold text-slate-600 text-center leading-tight truncate w-full"
+                      className={`mt-2 text-[11px] font-semibold text-center leading-tight truncate w-full transition-colors ${
+                        isHovered ? 'text-slate-900 font-bold' : 'text-slate-600'
+                      }`}
                       title={item.carrera}
                     >
-                      {item.label}
+                      {item.short}
                     </span>
                   </div>
                 );
@@ -290,79 +369,112 @@ export function DashboardBackups({
           </div>
         </div>
 
-        {/* Gráfico 2: Donut Circular por Tipo de Documento */}
+        {/* Gráfico 2: Donut Interactivo con Colores Luminosos */}
         <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-xs p-6 flex flex-col justify-between">
           <div className="mb-4">
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <PieChart className="w-4 h-4 text-[#002b59]" />
+              <PieChart className="w-4 h-4 text-amber-500" />
               Distribución por Tipo de Documento
             </h3>
             <p className="text-xs text-slate-500">
-              Proporción porcentual del flujo documental automatizado.
+              Pasa el cursor por los segmentos o leyenda para ver el detalle.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 my-auto py-2">
-            {/* SVG Donut */}
-            <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
-              <svg viewBox="0 0 130 130" className="w-full h-full -rotate-90">
+            {/* SVG Donut Interactivo */}
+            <div className="relative w-40 h-40 shrink-0 flex items-center justify-center">
+              <svg viewBox="0 0 130 130" className="w-full h-full -rotate-90 overflow-visible">
                 <circle
                   cx="65"
                   cy="65"
-                  r={donutSegments.radius}
+                  r={donutData.radius}
                   fill="none"
                   stroke="#f1f5f9"
-                  strokeWidth="16"
+                  strokeWidth="15"
                 />
-                {donutSegments.total > 0 &&
-                  donutSegments.segments.map((seg) =>
-                    seg.count > 0 ? (
+                {donutData.total > 0 &&
+                  donutData.segments.map((seg) => {
+                    if (seg.count === 0) return null;
+                    const isActive = hoveredSegment === seg.label;
+                    const isDimmed = hoveredSegment !== null && !isActive;
+
+                    return (
                       <circle
                         key={seg.label}
                         cx="65"
                         cy="65"
-                        r={donutSegments.radius}
+                        r={donutData.radius}
                         fill="none"
                         stroke={seg.color}
-                        strokeWidth="16"
-                        strokeDasharray={`${seg.dash} ${seg.gap}`}
+                        strokeWidth={isActive ? 20 : 15}
+                        strokeDasharray={
+                          chartsAnimated
+                            ? `${seg.dash} ${seg.gap}`
+                            : `0 ${donutData.circumference}`
+                        }
                         strokeDashoffset={seg.offset}
                         strokeLinecap="butt"
-                        className="transition-all duration-500"
+                        onMouseEnter={() => setHoveredSegment(seg.label)}
+                        onMouseLeave={() => setHoveredSegment(null)}
+                        style={{
+                          opacity: isDimmed ? 0.35 : 1,
+                          filter: isActive ? `drop-shadow(0 0 6px ${seg.color}66)` : 'none',
+                          transition:
+                            'stroke-dasharray 700ms cubic-bezier(0.22, 1, 0.36, 1), stroke-width 200ms ease, opacity 200ms ease',
+                        }}
+                        className="cursor-pointer"
                       />
-                    ) : null,
-                  )}
+                    );
+                  })}
               </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-2xl font-extrabold text-slate-900 leading-none">
-                  {donutSegments.total}
+
+              {/* Texto central dinámico al pasar el cursor */}
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center px-3">
+                <span className="text-2xl font-extrabold text-slate-900 leading-none transition-all">
+                  {activeDonutSegment ? `${activeDonutSegment.pct}%` : donutData.total}
                 </span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mt-1">
-                  Total
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-1 leading-tight">
+                  {activeDonutSegment ? activeDonutSegment.label : 'Total Docs'}
                 </span>
               </div>
             </div>
 
-            {/* Leyenda */}
-            <div className="w-full space-y-2">
-              {donutSegments.segments.map((seg) => (
-                <div
-                  key={seg.label}
-                  className="flex items-center justify-between text-xs gap-2"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: seg.color }}
-                    />
-                    <span className="text-slate-700 font-medium truncate">{seg.label}</span>
+            {/* Leyenda interactiva */}
+            <div className="w-full space-y-1.5">
+              {donutData.segments.map((seg) => {
+                const isActive = hoveredSegment === seg.label;
+                return (
+                  <div
+                    key={seg.label}
+                    onMouseEnter={() => setHoveredSegment(seg.label)}
+                    onMouseLeave={() => setHoveredSegment(null)}
+                    className={`flex items-center justify-between text-xs gap-2 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                      isActive ? 'bg-slate-100 scale-[1.02] shadow-2xs' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`w-3 h-3 rounded-full shrink-0 transition-transform ${
+                          isActive ? 'scale-125' : ''
+                        }`}
+                        style={{ backgroundColor: seg.color }}
+                      />
+                      <span
+                        className={`truncate ${
+                          isActive ? 'text-slate-900 font-bold' : 'text-slate-600 font-medium'
+                        }`}
+                      >
+                        {seg.label}
+                      </span>
+                    </div>
+                    <span className="font-bold text-slate-900 whitespace-nowrap">
+                      {seg.count}{' '}
+                      <span className="text-slate-400 font-normal">({seg.pct}%)</span>
+                    </span>
                   </div>
-                  <span className="font-bold text-slate-900 whitespace-nowrap">
-                    {seg.count}{' '}
-                    <span className="text-slate-400 font-normal">({seg.pct}%)</span>
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
