@@ -4,6 +4,7 @@ import {
   Award,
   BarChart3,
   Clock,
+  Database,
   Download,
   FileCheck2,
   FileSpreadsheet,
@@ -22,6 +23,7 @@ import type { ToastType } from './ToastContainer.tsx';
 interface DashboardBackupsProps {
   records: IssuedRecord[];
   auditLogs: AuditLogEntry[];
+  dbConnected: boolean;
   onReopenRecord: (record: IssuedRecord) => void;
   onRestoreBackup: (backup: SystemBackupFile) => void;
   onExportBackup: () => void;
@@ -33,6 +35,7 @@ interface DashboardBackupsProps {
 export function DashboardBackups({
   records,
   auditLogs,
+  dbConnected,
   onReopenRecord,
   onRestoreBackup,
   onExportBackup,
@@ -247,15 +250,26 @@ export function DashboardBackups({
 
         <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-xs p-6 flex flex-col justify-between gap-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FolderSync className="w-5 h-5 text-[#002b59]" />
-              Respaldos Portátiles (Sin Base de Datos)
-            </h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Cada documento emitido guarda su copia instantánea en este equipo para reabrirlo o
-              descargarlo en Word. Además, puedes exportar o restaurar toda la base documental en
-              un archivo <code className="bg-slate-100 px-1 rounded">.json</code> para llevarla a
-              otra computadora.
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FolderSync className="w-5 h-5 text-[#002b59]" />
+                Base de Datos y Respaldos
+              </h3>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
+                  dbConnected
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                }`}
+              >
+                <Database className="w-3 h-3" />
+                {dbConnected ? 'PostgreSQL Conectado' : 'Modo Local'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              {dbConnected
+                ? 'Cada constancia, informe y evento de auditoría se guarda automáticamente en PostgreSQL en la nube. También puedes exportar copias portátiles en JSON.'
+                : 'Cada documento emitido guarda su copia instantánea en este equipo. También puedes exportar o restaurar toda la base documental en un archivo JSON.'}
             </p>
           </div>
 

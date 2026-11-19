@@ -6,16 +6,20 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "start": "node server/index.js",
+    "server": "node server/index.js",
     "preview": "vite preview",
     "test": "node --test src/utils/documentLogic.test.ts"
   },
   "dependencies": {
+    "autodoc-lasalle": "file:",
     "docx": "^9.5.1",
     "docxtemplater": "^3.66.4",
+    "express": "^5.3.0",
     "file-saver": "^2.0.5",
-    "google-antigravity": "file:../../AppData/Local/Programs/Antigravity IDE/resources/app/extensions/agy",
     "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
+    "pg": "^8.23.1",
     "pizzip": "^3.2.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",

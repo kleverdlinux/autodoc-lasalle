@@ -12,6 +12,16 @@ import type {
 } from './types/documents.ts';
 import { DEFAULT_CONSTANCIA, DEFAULT_OFICIO } from './data/institutional.ts';
 import { buildExportBaseFilename, buildOficioHeaderCode } from './utils/documentLogic.ts';
+import {
+  bulkRestoreInDb,
+  clearAuditLogsInDb,
+  clearIssuedRecordsInDb,
+  fetchAuditLogsFromDb,
+  fetchDbHealth,
+  fetchIssuedRecordsFromDb,
+  saveAuditLogToDb,
+  saveIssuedRecordToDb,
+} from './utils/apiClient.ts';
 import { Header, type ActiveTab } from './components/Header.tsx';
 import { ConstanciaForm } from './components/ConstanciaForm.tsx';
 import { OficioForm } from './components/OficioForm.tsx';
@@ -50,6 +60,7 @@ export function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewZoom, setPreviewZoom] = useState<PreviewZoom>(100);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [dbConnected, setDbConnected] = useState(false);
 
   const [history, setHistory] = useState<IssuedRecord[]>(() => {
     try {
@@ -94,6 +105,29 @@ export function App() {
       detalle,
     };
     setAuditLogs((prev) => [entry, ...prev]);
+    void saveAuditLogToDb(entry);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function syncDatabase() {
+      const health = await fetchDbHealth();
+      if (!active) return;
+      setDbConnected(health.connected);
+      if (health.connected) {
+        const [dbRecords, dbAudit] = await Promise.all([
+          fetchIssuedRecordsFromDb(),
+          fetchAuditLogsFromDb(),
+        ]);
+        if (!active) return;
+        if (dbRecords) setHistory(dbRecords);
+        if (dbAudit) setAuditLogs(dbAudit);
+      }
+    }
+    void syncDatabase();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -135,6 +169,7 @@ export function App() {
         creadoEn: new Date().toLocaleString('es-PE'),
       };
       setHistory((prev) => [newEntry, ...prev]);
+      void saveIssuedRecordToDb(newEntry);
 
       const actionMap: Record<IssuedRecord['tipo'], AuditAction> = {
         'Constancia de Egresado': 'EMISION_CONSTANCIA',
@@ -260,6 +295,7 @@ export function App() {
         return merged;
       });
     }
+    void bulkRestoreInDb(backup.history, backup.auditLogs);
     appendAudit(
       'RESPALDO_SISTEMA',
       'Respaldos JSON',
@@ -427,6 +463,7 @@ export function App() {
             <DashboardBackups
               records={history}
               auditLogs={auditLogs}
+              dbConnected={dbConnected}
               onReopenRecord={handleReopenRecord}
               onRestoreBackup={handleRestoreBackup}
               onExportBackup={() =>
@@ -445,6 +482,7 @@ export function App() {
               }
               onClearHistory={() => {
                 setHistory([]);
+                void clearIssuedRecordsInDb();
                 appendAudit('RESPALDO_SISTEMA', 'Dashboard y Respaldos', 'Limpieza manual del historial.');
                 pushToast('info', 'Libro de emisiones limpiado');
               }}
@@ -456,6 +494,7 @@ export function App() {
               logs={auditLogs}
               onClearLogs={() => {
                 setAuditLogs([]);
+                void clearAuditLogsInDb();
                 pushToast('info', 'Bitácora de auditoría limpiada');
               }}
               onNotify={pushToast}

@@ -27,6 +27,7 @@
 ## 🛠️ Stack Tecnológico
 
 * **Frontend:** React 19, TypeScript, Vite 6, Tailwind CSS v4, Lucide React
+* **Backend & Base de Datos:** Node.js, Express 5, PostgreSQL (`pg`) con inicialización automática de esquema (`database/schema.sql`)
 * **Motores Documentales:** `docx`, `docxtemplater`, `pizzip`, `xlsx` (SheetJS), `jszip`, `file-saver`
 * **Pruebas Unitarias:** Node.js Native Test Runner (`node:test`)
 
@@ -38,19 +39,24 @@
 # Instalar dependencias
 npm install
 
-# Ejecutar servidor local
+# Ejecutar servidor frontend de desarrollo
 npm run dev
+
+# Ejecutar servidor Express + PostgreSQL (usa DATABASE_URL si está configurado)
+npm start
 
 # Ejecutar pruebas unitarias (8 pruebas)
 npm test
 
-# Compilar para producción (Render Static Site)
+# Compilar para producción
 npm run build
 ```
 
 ---
 
-## 🌐 Despliegue en Render (Static Site)
+## 🌐 Despliegue en Render (Web Service + PostgreSQL)
 
-* **Build Command:** `npm run build`
-* **Publish Directory:** `dist`
+El proyecto incluye [`render.yaml`](render.yaml) (Blueprint oficial de Render) para crear automáticamente el Web Service Node.js y la base de datos PostgreSQL conectada por `DATABASE_URL`:
+
+* **Build Command:** `npm install && npm run build`
+* **Start Command:** `npm start`
