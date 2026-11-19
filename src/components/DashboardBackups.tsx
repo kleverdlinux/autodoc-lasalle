@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { saveAs } from 'file-saver';
 import {
   Award,
@@ -8,37 +8,38 @@ import {
   Download,
   FileCheck2,
   FileSpreadsheet,
-  FolderSync,
-  HardDriveDownload,
+  PieChart,
   RotateCcw,
   Search,
   Trash2,
-  Upload,
 } from 'lucide-react';
-import type { AuditLogEntry, IssuedRecord, SystemBackupFile } from '../types/documents.ts';
+import type { IssuedRecord } from '../types/documents.ts';
+import { CARRERAS_OFICIALES } from '../data/institutional.ts';
 import { buildExportBaseFilename, computeDashboardStats } from '../utils/documentLogic.ts';
 import { exportHistoryToExcel } from '../utils/excelBatch.ts';
 import type { ToastType } from './ToastContainer.tsx';
 
 interface DashboardBackupsProps {
   records: IssuedRecord[];
-  auditLogs: AuditLogEntry[];
   dbConnected: boolean;
   onReopenRecord: (record: IssuedRecord) => void;
-  onRestoreBackup: (backup: SystemBackupFile) => void;
-  onExportBackup: () => void;
   onExportExcelLog: () => void;
   onClearHistory: () => void;
   onNotify: (type: ToastType, title: string, description?: string) => void;
 }
 
+const SHORT_CAREER_LABEL: Record<string, string> = {
+  Enfermería: 'Enfermería',
+  Farmacia: 'Farmacia',
+  Fisioterapia: 'Fisioterapia',
+  Optometría: 'Optometría',
+  'Prótesis Dental': 'Prót. Dental',
+};
+
 export function DashboardBackups({
   records,
-  auditLogs,
   dbConnected,
   onReopenRecord,
-  onRestoreBackup,
-  onExportBackup,
   onExportExcelLog,
   onClearHistory,
   onNotify,
@@ -47,7 +48,54 @@ export function DashboardBackups({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const stats = useMemo(() => computeDashboardStats(records), [records]);
-  const maxCareerCount = Math.max(1, ...stats.porCarrera.map((c) => c.cantidad));
+
+  // Asegura mostrar siempre las 5 carreras oficiales en el gráfico de barras
+  const careerSeries = useMemo(() => {
+    const map = new Map<string, number>();
+    CARRERAS_OFICIALES.forEach((c) => map.set(c, 0));
+    stats.porCarrera.forEach((item) => {
+      if (item.carrera !== 'Varias carreras' && item.carrera !== 'Sin especificar') {
+        map.set(item.carrera, (map.get(item.carrera) ?? 0) + item.cantidad);
+      }
+    });
+    return Array.from(map.entries()).map(([carrera, cantidad]) => ({
+      carrera,
+      label: SHORT_CAREER_LABEL[carrera] ?? carrera,
+      cantidad,
+    }));
+  }, [stats.porCarrera]);
+
+  const maxBar = Math.max(1, ...careerSeries.map((c) => c.cantidad));
+
+  // Datos para el gráfico circular (Donut SVG) por tipo de documento
+  const donutSegments = useMemo(() => {
+    const items = [
+      { label: 'Constancias', count: stats.totalConstancias, color: '#002b59' },
+      { label: 'Informes / Oficios', count: stats.totalOficios, color: '#f5b038' },
+      { label: 'Lotes Excel (ZIP)', count: stats.totalLotes, color: '#059669' },
+      { label: 'Plantillas Libres', count: stats.totalPersonalizados, color: '#6366f1' },
+    ];
+    const total = items.reduce((acc, i) => acc + i.count, 0);
+    const radius = 52;
+    const circumference = 2 * Math.PI * radius;
+    let offsetAcc = 0;
+
+    const segments = items.map((item) => {
+      const fraction = total > 0 ? item.count / total : 0;
+      const dash = fraction * circumference;
+      const seg = {
+        ...item,
+        pct: total > 0 ? Math.round(fraction * 100) : 0,
+        dash,
+        gap: circumference - dash,
+        offset: -offsetAcc,
+      };
+      offsetAcc += dash;
+      return seg;
+    });
+
+    return { total, radius, circumference, segments };
+  }, [stats]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -73,50 +121,6 @@ export function DashboardBackups({
       'Libro de Emisiones exportado a Excel',
       `${records.length} registro(s) guardados en formato .xlsx.`,
     );
-  };
-
-  const handleDownloadBackupJson = () => {
-    const payload: SystemBackupFile = {
-      app: 'AutoDoc La Salle',
-      version: '1.0',
-      exportedAt: new Date().toISOString(),
-      history: records,
-      auditLogs,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json;charset=utf-8',
-    });
-    const fecha = new Date().toISOString().slice(0, 10);
-    saveAs(blob, `Respaldo_AutoDoc_LaSalle_${fecha}.json`);
-    onExportBackup();
-    onNotify(
-      'success',
-      'Respaldo completo descargado (.json)',
-      `Incluye ${records.length} documento(s) y ${auditLogs.length} eventos de auditoría.`,
-    );
-  };
-
-  const handleUploadBackupJson = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text) as Partial<SystemBackupFile>;
-      if (parsed.app !== 'AutoDoc La Salle' || !Array.isArray(parsed.history)) {
-        onNotify('error', 'Archivo de respaldo inválido', 'Selecciona un archivo .json generado por AutoDoc La Salle.');
-        return;
-      }
-      onRestoreBackup({
-        app: 'AutoDoc La Salle',
-        version: parsed.version ?? '1.0',
-        exportedAt: parsed.exportedAt ?? new Date().toISOString(),
-        history: parsed.history,
-        auditLogs: Array.isArray(parsed.auditLogs) ? parsed.auditLogs : [],
-      });
-    } catch {
-      onNotify('error', 'No se pudo leer el respaldo JSON', 'Verifica que el archivo no esté dañado.');
-    }
   };
 
   const handleRedownloadDocx = async (rec: IssuedRecord) => {
@@ -158,7 +162,27 @@ export function DashboardBackups({
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* 4 Tarjetas KPI del Dashboard */}
+      {/* Encabezado discreto del Dashboard con indicador de BD */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Dashboard Ejecutivo de Emisiones</h2>
+          <p className="text-xs text-slate-500">
+            Métricas en tiempo real, gráficos estadísticos y copias de respaldo por documento.
+          </p>
+        </div>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border shadow-2xs ${
+            dbConnected
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-white text-slate-600 border-slate-200'
+          }`}
+        >
+          <Database className="w-3.5 h-3.5" />
+          {dbConnected ? 'PostgreSQL Conectado' : 'Modo Local'}
+        </span>
+      </div>
+
+      {/* 4 Tarjetas KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-[#002b59] text-white flex items-center justify-center shrink-0">
@@ -209,88 +233,137 @@ export function DashboardBackups({
         </div>
       </div>
 
-      {/* Gráfico por Carrera + Centro de Respaldo Local */}
+      {/* Dos Gráficos Estadísticos Lado a Lado */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-          <div className="flex items-center justify-between mb-4">
+        {/* Gráfico 1: Barras Verticales por Carrera */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-xs p-6 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Emisiones por Carrera Técnica</h3>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-[#002b59]" />
+                Emisiones por Carrera Técnica
+              </h3>
               <p className="text-xs text-slate-500">
-                Distribución en tiempo real de los documentos generados.
+                Volumen de documentos generados por especialidad académica.
               </p>
             </div>
           </div>
 
-          {stats.porCarrera.length === 0 ? (
-            <div className="py-10 text-center text-sm text-slate-400">
-              Genera tu primera Constancia o Informe para visualizar las estadísticas por carrera.
+          <div className="relative pt-4">
+            {/* Líneas horizontales de referencia */}
+            <div className="absolute inset-x-0 top-4 bottom-8 flex flex-col justify-between pointer-events-none">
+              {[0, 1, 2, 3].map((line) => (
+                <div key={line} className="border-b border-dashed border-slate-200/80 w-full" />
+              ))}
             </div>
-          ) : (
-            <div className="space-y-3">
-              {stats.porCarrera.map((item) => {
-                const widthPct = Math.max(8, Math.round((item.cantidad / maxCareerCount) * 100));
+
+            <div className="relative z-10 grid grid-cols-5 gap-3 sm:gap-5 items-end h-44 px-2">
+              {careerSeries.map((item) => {
+                const heightPct =
+                  item.cantidad > 0 ? Math.max(16, Math.round((item.cantidad / maxBar) * 100)) : 6;
                 return (
-                  <div key={item.carrera} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-semibold">
-                      <span className="text-slate-700">{item.carrera}</span>
-                      <span className="text-[#002b59] font-bold">{item.cantidad}</span>
-                    </div>
-                    <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div key={item.carrera} className="flex flex-col items-center h-full justify-end">
+                    <span className="text-xs font-extrabold text-[#002b59] mb-1.5">
+                      {item.cantidad}
+                    </span>
+                    <div className="w-full max-w-[46px] h-32 flex items-end justify-center">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#002b59] to-[#f5b038] transition-all duration-300"
-                        style={{ width: `${widthPct}%` }}
+                        title={`${item.carrera}: ${item.cantidad}`}
+                        className={`w-full rounded-t-xl transition-all duration-500 ${
+                          item.cantidad > 0
+                            ? 'bg-gradient-to-t from-[#002b59] via-[#003b75] to-[#f5b038] shadow-sm'
+                            : 'bg-slate-100'
+                        }`}
+                        style={{ height: `${heightPct}%` }}
                       />
                     </div>
+                    <span
+                      className="mt-2 text-[11px] font-semibold text-slate-600 text-center leading-tight truncate w-full"
+                      title={item.carrera}
+                    >
+                      {item.label}
+                    </span>
                   </div>
                 );
               })}
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-xs p-6 flex flex-col justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FolderSync className="w-5 h-5 text-[#002b59]" />
-                Base de Datos y Respaldos
-              </h3>
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
-                  dbConnected
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-amber-50 text-amber-800 border-amber-200'
-                }`}
-              >
-                <Database className="w-3 h-3" />
-                {dbConnected ? 'PostgreSQL Conectado' : 'Modo Local'}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              {dbConnected
-                ? 'Cada constancia, informe y evento de auditoría se guarda automáticamente en PostgreSQL en la nube. También puedes exportar copias portátiles en JSON.'
-                : 'Cada documento emitido guarda su copia instantánea en este equipo. También puedes exportar o restaurar toda la base documental en un archivo JSON.'}
+        {/* Gráfico 2: Donut Circular por Tipo de Documento */}
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-xs p-6 flex flex-col justify-between">
+          <div className="mb-4">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <PieChart className="w-4 h-4 text-[#002b59]" />
+              Distribución por Tipo de Documento
+            </h3>
+            <p className="text-xs text-slate-500">
+              Proporción porcentual del flujo documental automatizado.
             </p>
           </div>
 
-          <div className="space-y-2.5">
-            <button
-              type="button"
-              onClick={handleDownloadBackupJson}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#002b59] hover:bg-[#001f42] text-white font-semibold px-4 py-2.5 text-sm shadow-xs transition cursor-pointer"
-            >
-              <HardDriveDownload className="w-4 h-4" /> Descargar Respaldo Completo (.json)
-            </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 my-auto py-2">
+            {/* SVG Donut */}
+            <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
+              <svg viewBox="0 0 130 130" className="w-full h-full -rotate-90">
+                <circle
+                  cx="65"
+                  cy="65"
+                  r={donutSegments.radius}
+                  fill="none"
+                  stroke="#f1f5f9"
+                  strokeWidth="16"
+                />
+                {donutSegments.total > 0 &&
+                  donutSegments.segments.map((seg) =>
+                    seg.count > 0 ? (
+                      <circle
+                        key={seg.label}
+                        cx="65"
+                        cy="65"
+                        r={donutSegments.radius}
+                        fill="none"
+                        stroke={seg.color}
+                        strokeWidth="16"
+                        strokeDasharray={`${seg.dash} ${seg.gap}`}
+                        strokeDashoffset={seg.offset}
+                        strokeLinecap="butt"
+                        className="transition-all duration-500"
+                      />
+                    ) : null,
+                  )}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-2xl font-extrabold text-slate-900 leading-none">
+                  {donutSegments.total}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mt-1">
+                  Total
+                </span>
+              </div>
+            </div>
 
-            <label className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 font-semibold px-4 py-2.5 text-sm transition cursor-pointer">
-              <Upload className="w-4 h-4 text-[#002b59]" /> Restaurar Respaldo (.json)
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleUploadBackupJson}
-                className="hidden"
-              />
-            </label>
+            {/* Leyenda */}
+            <div className="w-full space-y-2">
+              {donutSegments.segments.map((seg) => (
+                <div
+                  key={seg.label}
+                  className="flex items-center justify-between text-xs gap-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: seg.color }}
+                    />
+                    <span className="text-slate-700 font-medium truncate">{seg.label}</span>
+                  </div>
+                  <span className="font-bold text-slate-900 whitespace-nowrap">
+                    {seg.count}{' '}
+                    <span className="text-slate-400 font-normal">({seg.pct}%)</span>
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

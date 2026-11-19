@@ -8,12 +8,10 @@ import type {
   DocTemplateType,
   IssuedRecord,
   OficioData,
-  SystemBackupFile,
 } from './types/documents.ts';
 import { DEFAULT_CONSTANCIA, DEFAULT_OFICIO } from './data/institutional.ts';
 import { buildExportBaseFilename, buildOficioHeaderCode } from './utils/documentLogic.ts';
 import {
-  bulkRestoreInDb,
   clearAuditLogsInDb,
   clearIssuedRecordsInDb,
   fetchAuditLogsFromDb,
@@ -282,32 +280,6 @@ export function App() {
     pushToast('info', 'Documento cargado desde respaldo', `${record.codigo} listo para editar o imprimir.`);
   };
 
-  const handleRestoreBackup = (backup: SystemBackupFile) => {
-    setHistory((prev) => {
-      const existingIds = new Set(prev.map((item) => item.id));
-      const merged = [...prev, ...backup.history.filter((item) => !existingIds.has(item.id))];
-      return merged;
-    });
-    if (backup.auditLogs.length > 0) {
-      setAuditLogs((prev) => {
-        const existingIds = new Set(prev.map((item) => item.id));
-        const merged = [...prev, ...backup.auditLogs.filter((item) => !existingIds.has(item.id))];
-        return merged;
-      });
-    }
-    void bulkRestoreInDb(backup.history, backup.auditLogs);
-    appendAudit(
-      'RESPALDO_SISTEMA',
-      'Respaldos JSON',
-      `Restauración de respaldo con ${backup.history.length} documento(s).`,
-    );
-    pushToast(
-      'success',
-      'Respaldo restaurado correctamente',
-      `Se integraron los registros del archivo exportado el ${backup.exportedAt.slice(0, 10)}.`,
-    );
-  };
-
   const handleLoginSuccess = (remember: boolean) => {
     try {
       if (remember) {
@@ -462,17 +434,8 @@ export function App() {
           {activeTab === 'dashboard' && (
             <DashboardBackups
               records={history}
-              auditLogs={auditLogs}
               dbConnected={dbConnected}
               onReopenRecord={handleReopenRecord}
-              onRestoreBackup={handleRestoreBackup}
-              onExportBackup={() =>
-                appendAudit(
-                  'RESPALDO_SISTEMA',
-                  'Respaldos JSON',
-                  `Exportación de respaldo completo (${history.length} documentos).`,
-                )
-              }
               onExportExcelLog={() =>
                 appendAudit(
                   'EXPORTACION_EXCEL',
