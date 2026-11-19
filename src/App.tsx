@@ -51,7 +51,7 @@ export function App() {
       return false;
     }
   });
-  const [activeTab, setActiveTab] = useState<ActiveTab>('oficial');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [docMode, setDocMode] = useState<DocTemplateType>('constancia');
   const [constancia, setConstancia] = useState<ConstanciaData>(DEFAULT_CONSTANCIA);
   const [oficio, setOficio] = useState<OficioData>(DEFAULT_OFICIO);
@@ -291,6 +291,7 @@ export function App() {
       // Ignorar si almacenamiento no está disponible
     }
     setIsAuthenticated(true);
+    setActiveTab('dashboard');
     appendAudit('INICIO_SESION', 'Autenticación', 'Acceso exitoso al sistema administrativo.');
     pushToast('success', 'Sesión iniciada', 'Bienvenido al módulo de automatización documental.');
   };
@@ -436,6 +437,10 @@ export function App() {
               records={history}
               dbConnected={dbConnected}
               onReopenRecord={handleReopenRecord}
+              onQuickCreate={(tab, mode) => {
+                if (mode) setDocMode(mode);
+                setActiveTab(tab);
+              }}
               onExportExcelLog={() =>
                 appendAudit(
                   'EXPORTACION_EXCEL',

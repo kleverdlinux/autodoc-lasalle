@@ -9,20 +9,23 @@ import {
   FileCheck2,
   FileSpreadsheet,
   PieChart,
+  PlusCircle,
   RotateCcw,
   Search,
   Trash2,
 } from 'lucide-react';
-import type { IssuedRecord } from '../types/documents.ts';
+import type { DocTemplateType, IssuedRecord } from '../types/documents.ts';
 import { CARRERAS_OFICIALES } from '../data/institutional.ts';
 import { buildExportBaseFilename, computeDashboardStats } from '../utils/documentLogic.ts';
 import { exportHistoryToExcel } from '../utils/excelBatch.ts';
 import type { ToastType } from './ToastContainer.tsx';
+import type { ActiveTab } from './Header.tsx';
 
 interface DashboardBackupsProps {
   records: IssuedRecord[];
   dbConnected: boolean;
   onReopenRecord: (record: IssuedRecord) => void;
+  onQuickCreate: (tab: ActiveTab, docMode?: DocTemplateType) => void;
   onExportExcelLog: () => void;
   onClearHistory: () => void;
   onNotify: (type: ToastType, title: string, description?: string) => void;
@@ -68,6 +71,7 @@ export function DashboardBackups({
   records,
   dbConnected,
   onReopenRecord,
+  onQuickCreate,
   onExportExcelLog,
   onClearHistory,
   onNotify,
@@ -230,6 +234,51 @@ export function DashboardBackups({
           <Database className="w-3.5 h-3.5" />
           {dbConnected ? 'PostgreSQL Conectado' : 'Modo Local'}
         </span>
+      </div>
+
+      {/* Accesos Rápidos de Emisión */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <button
+          type="button"
+          onClick={() => onQuickCreate('oficial', 'constancia')}
+          className="group flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#002b59] to-[#003b75] hover:brightness-110 text-white p-4 shadow-sm transition-all cursor-pointer text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-amber-300 shrink-0 group-hover:scale-105 transition-transform">
+            <PlusCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-tight">Nueva Constancia</p>
+            <p className="text-[11px] text-blue-100/80 mt-0.5">Emitir constancia de egresado</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onQuickCreate('oficial', 'oficio')}
+          className="group flex items-center gap-3 rounded-2xl bg-white hover:bg-amber-50/50 border border-slate-200 hover:border-amber-300 text-slate-900 p-4 shadow-2xs transition-all cursor-pointer text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 group-hover:scale-105 transition-transform">
+            <FileCheck2 className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-tight">Nuevo Informe / Oficio</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Trámites y respuestas oficiales</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onQuickCreate('masivo')}
+          className="group flex items-center gap-3 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-200 hover:border-emerald-300 text-slate-900 p-4 shadow-2xs transition-all cursor-pointer text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 group-hover:scale-105 transition-transform">
+            <FileSpreadsheet className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-tight">Lote Masivo Excel → ZIP</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Generar múltiples constancias</p>
+          </div>
+        </button>
       </div>
 
       {/* 4 Tarjetas KPI */}

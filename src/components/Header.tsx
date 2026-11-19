@@ -25,10 +25,10 @@ export function Header({
   onLogout,
 }: HeaderProps) {
   const tabs: { id: ActiveTab; label: string; icon: typeof FileText; badge?: number }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, badge: historyCount },
     { id: 'oficial', label: 'Generador', icon: FileText },
     { id: 'masivo', label: 'Lote Excel', icon: FileSpreadsheet },
     { id: 'plantillas', label: 'Plantillas', icon: Layers },
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, badge: historyCount },
     { id: 'auditoria', label: 'Auditoría', icon: ShieldCheck, badge: auditCount },
   ];
 
