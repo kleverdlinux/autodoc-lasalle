@@ -12,6 +12,12 @@
     "test": "node --test src/utils/documentLogic.test.ts"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.4",
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.10",
+    "@vitejs/plugin-react": "^4.3.4",
     "autodoc-lasalle": "file:",
     "docx": "^9.5.1",
     "docxtemplater": "^3.66.4",
@@ -23,17 +29,9 @@
     "pizzip": "^3.2.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "xlsx": "^0.18.5"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.1.4",
-    "@types/file-saver": "^2.0.7",
-    "@types/node": "^22.14.0",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.10",
-    "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.2",
-    "vite": "^6.3.1"
+    "vite": "^6.3.1",
+    "xlsx": "^0.18.5"
   }
 }
