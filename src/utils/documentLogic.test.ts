@@ -7,6 +7,7 @@ import {
   extractDocxTags,
   formatInstitutionalDate,
   getGenderAgreement,
+  isSessionExpired,
   isValidDni,
   normalizeCarrera,
   normalizeTratamiento,
@@ -128,5 +129,13 @@ describe('Lógica Documental — AutoDoc La Salle', () => {
     assert.equal(stats.minutosAhorrados, 36);
     assert.equal(stats.porCarrera[0].carrera, 'Farmacia');
     assert.equal(stats.porCarrera[0].cantidad, 2);
+  });
+
+  it('suspende la sesión tras 30 minutos exactos de inactividad', () => {
+    const start = 1_700_000_000_000;
+    const thirtyMinutes = 30 * 60 * 1000;
+    assert.equal(isSessionExpired(start, start + thirtyMinutes - 1), false);
+    assert.equal(isSessionExpired(start, start + thirtyMinutes), true);
+    assert.equal(isSessionExpired(null, start), false);
   });
 });

@@ -82,19 +82,17 @@ export function Header({
                     key={tab.id}
                     type="button"
                     onClick={() => onChangeTab(tab.id)}
-                    className={`inline-flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-lg text-xs xl:text-[13px] font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                      isActive
-                        ? 'bg-[#f5b038] text-[#001b38] shadow-sm'
-                        : 'text-slate-200 hover:bg-white/10 hover:text-white'
-                    }`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-lg text-xs xl:text-[13px] font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${isActive
+                      ? 'bg-[#f5b038] text-[#001b38] shadow-sm'
+                      : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                      }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
                     <span>{tab.label}</span>
                     {tab.badge !== undefined && tab.badge > 0 && (
                       <span
-                        className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[11px] font-bold ${
-                          isActive ? 'bg-[#002b59] text-white' : 'bg-white/20 text-white'
-                        }`}
+                        className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[11px] font-bold ${isActive ? 'bg-[#002b59] text-white' : 'bg-white/20 text-white'
+                          }`}
                       >
                         {tab.badge}
                       </span>

@@ -16,6 +16,7 @@ import { verifyAdminCredentials } from '../utils/documentLogic.ts';
 
 interface LoginScreenProps {
   onLoginSuccess: (remember: boolean) => void;
+  sessionExpiredMessage?: string;
 }
 
 function playSuccessChime() {
@@ -42,7 +43,7 @@ function playSuccessChime() {
   }
 }
 
-export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export function LoginScreen({ onLoginSuccess, sessionExpiredMessage }: LoginScreenProps) {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -212,6 +213,13 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 Acceso a Automatización Documental
               </p>
             </div>
+
+            {sessionExpiredMessage && !errorMsg && (
+              <div className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-xs text-amber-800 font-medium">
+                <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                <span>{sessionExpiredMessage}</span>
+              </div>
+            )}
 
             {errorMsg && (
               <div className="mb-4 flex items-start gap-2 rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs text-rose-700 font-medium">

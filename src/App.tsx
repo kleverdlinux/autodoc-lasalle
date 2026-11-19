@@ -10,7 +10,11 @@ import type {
   OficioData,
 } from './types/documents.ts';
 import { DEFAULT_CONSTANCIA, DEFAULT_OFICIO } from './data/institutional.ts';
-import { buildExportBaseFilename, buildOficioHeaderCode } from './utils/documentLogic.ts';
+import {
+  buildExportBaseFilename,
+  buildOficioHeaderCode,
+  isSessionExpired,
+} from './utils/documentLogic.ts';
 import {
   clearAuditLogsInDb,
   clearIssuedRecordsInDb,
@@ -35,18 +39,29 @@ const AuditLogView = lazy(() => import('./components/AuditLogView.tsx'));
 const STORAGE_KEY = 'autodoc_lasalle_history_v1';
 const AUDIT_STORAGE_KEY = 'autodoc_lasalle_audit_v1';
 const AUTH_STORAGE_KEY = 'autodoc_lasalle_auth_v1';
+const LAST_ACTIVITY_KEY = 'autodoc_lasalle_last_activity_v1';
 const APP_PAGE_TITLE = 'AutoDoc La Salle — Automatización Documental Administrativa';
 
 type PreviewZoom = 80 | 90 | 100;
 const ZOOM_LEVELS: PreviewZoom[] = [80, 90, 100];
 
 export function App() {
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try {
-      return (
+      const hasSession =
         localStorage.getItem(AUTH_STORAGE_KEY) === 'true' ||
-        sessionStorage.getItem(AUTH_STORAGE_KEY) === 'true'
-      );
+        sessionStorage.getItem(AUTH_STORAGE_KEY) === 'true';
+      if (!hasSession) return false;
+      const rawLast = localStorage.getItem(LAST_ACTIVITY_KEY);
+      const lastMs = rawLast ? Number(rawLast) : null;
+      if (isSessionExpired(lastMs)) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        sessionStorage.removeItem(AUTH_STORAGE_KEY);
+        localStorage.removeItem(LAST_ACTIVITY_KEY);
+        return false;
+      }
+      return true;
     } catch {
       return false;
     }
@@ -287,28 +302,103 @@ export function App() {
       } else {
         sessionStorage.setItem(AUTH_STORAGE_KEY, 'true');
       }
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
     } catch {
       // Ignorar si almacenamiento no está disponible
     }
+    setSessionExpiredMessage('');
     setIsAuthenticated(true);
     setActiveTab('dashboard');
     appendAudit('INICIO_SESION', 'Autenticación', 'Acceso exitoso al sistema administrativo.');
     pushToast('success', 'Sesión iniciada', 'Bienvenido al módulo de automatización documental.');
   };
 
-  const handleLogout = () => {
-    appendAudit('CIERRE_SESION', 'Autenticación', 'Cierre de sesión manual por el usuario.');
+  const handleLogout = useCallback(
+    (reason: 'manual' | 'timeout' = 'manual') => {
+      appendAudit(
+        'CIERRE_SESION',
+        reason === 'timeout' ? 'Seguridad de Sesión' : 'Autenticación',
+        reason === 'timeout'
+          ? 'Sesión suspendida automáticamente por inactividad (30 minutos).'
+          : 'Cierre de sesión manual por el usuario.',
+      );
+      try {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        sessionStorage.removeItem(AUTH_STORAGE_KEY);
+        localStorage.removeItem(LAST_ACTIVITY_KEY);
+      } catch {
+        // Ignorar
+      }
+      setSessionExpiredMessage(
+        reason === 'timeout'
+          ? 'Sesión suspendida automáticamente tras 30 minutos de inactividad. Ingresa nuevamente.'
+          : '',
+      );
+      setIsAuthenticated(false);
+    },
+    [appendAudit],
+  );
+
+  // Control automático de suspensión por inactividad (30 minutos)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let lastRecorded = Date.now();
     try {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(lastRecorded));
     } catch {
       // Ignorar
     }
-    setIsAuthenticated(false);
-  };
+
+    const recordActivity = () => {
+      const now = Date.now();
+      if (now - lastRecorded < 10_000) return;
+      lastRecorded = now;
+      try {
+        localStorage.setItem(LAST_ACTIVITY_KEY, String(now));
+      } catch {
+        // Ignorar
+      }
+    };
+
+    const checkTimeout = () => {
+      try {
+        const raw = localStorage.getItem(LAST_ACTIVITY_KEY);
+        const lastMs = raw ? Number(raw) : lastRecorded;
+        if (isSessionExpired(lastMs)) {
+          handleLogout('timeout');
+        }
+      } catch {
+        if (isSessionExpired(lastRecorded)) {
+          handleLogout('timeout');
+        }
+      }
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach((ev) => window.addEventListener(ev, recordActivity, { passive: true }));
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkTimeout();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    const intervalId = window.setInterval(checkTimeout, 15_000);
+
+    return () => {
+      events.forEach((ev) => window.removeEventListener(ev, recordActivity));
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(intervalId);
+    };
+  }, [isAuthenticated, handleLogout]);
 
   if (!isAuthenticated) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <LoginScreen
+        onLoginSuccess={handleLoginSuccess}
+        sessionExpiredMessage={sessionExpiredMessage}
+      />
+    );
   }
 
   const zoomScale = previewZoom / 100;
@@ -320,7 +410,7 @@ export function App() {
         onChangeTab={setActiveTab}
         historyCount={history.length}
         auditCount={auditLogs.length}
-        onLogout={handleLogout}
+        onLogout={() => handleLogout('manual')}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 print:p-0 print:m-0 print:max-w-none">

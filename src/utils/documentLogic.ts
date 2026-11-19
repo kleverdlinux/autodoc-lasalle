@@ -238,3 +238,17 @@ export function computeDashboardStats(records: IssuedRecord[]) {
     porCarrera,
   };
 }
+
+export const SESSION_INACTIVITY_MS = 30 * 60 * 1000;
+
+/**
+ * Determina si la sesión administrativa expiró por inactividad (30 minutos por defecto).
+ */
+export function isSessionExpired(
+  lastActivityMs: number | null,
+  nowMs = Date.now(),
+  timeoutMs = SESSION_INACTIVITY_MS,
+): boolean {
+  if (lastActivityMs === null || Number.isNaN(lastActivityMs)) return false;
+  return nowMs - lastActivityMs >= timeoutMs;
+}
