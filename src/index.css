@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@theme {
+  --color-lasalle-navy: #002b59;
+  --color-lasalle-deep: #001b38;
+  --color-lasalle-gold: #f5b038;
+  --color-lasalle-crimson: #9e1b32;
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-display: "Cinzel", Georgia, serif;
+}
+
+html,
+body {
+  font-family: var(--font-sans);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+@layer utilities {
+  .font-archivo-black {
+    font-family: "Archivo Black", sans-serif;
+  }
+
+  .bg-brand-gradient {
+    background-image: none;
+  }
+
+  @media (max-width: 1023px) {
+    .bg-brand-gradient {
+      background-image: linear-gradient(135deg, #002b59 0%, #002147 55%, #00152e 100%);
+    }
+  }
+
+  .btn-brand-action {
+    background-image: linear-gradient(135deg, #003366 0%, #001f3f 100%);
+    box-shadow: 0 12px 26px -6px rgba(0, 33, 71, 0.45);
+    transition: all 0.25s ease;
+  }
+
+  .btn-brand-action:hover {
+    transform: translateY(-1.5px);
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes spinRing {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-enter {
+  animation: toastSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Hoja A4 en vista previa */
+.a4-sheet {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #111111;
+  background: #ffffff;
+}
+
+/* Reglas de impresión limpias: 1 sola hoja A4 sin encabezados del navegador */
+@media print {
+  html,
+  body {
+    width: 210mm;
+    height: 297mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-zoom-reset {
+    transform: none !important;
+    width: 100% !important;
+  }
+  .print-only-container {
+    margin: 0 auto !important;
+    padding: 12mm 18mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    height: 296mm !important;
+    min-height: 296mm !important;
+    max-height: 296mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
