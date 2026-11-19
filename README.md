@@ -2,18 +2,18 @@
 
 > **Proyecto de Formación Práctica en Empresa (FPE) — SENATI (V Semestre)**  
 > **Institución Beneficiaria:** Instituto de Educación Superior Privado San Juan Bautista La Salle (Juliaca)  
-> **Equipo de Desarrollo:** Kleverd Gabriel Apaza Quispe, Omar, Michel  
+> **Equipo de Desarrollo:** Kleverd, Omar, Michel  
 > **Período:** 02 de noviembre al 20 de noviembre de 2026  
 
 ---
 
-## 📋 Descripción del Proyecto
+## Descripción del Proyecto
 
 **AutoDoc La Salle** es una aplicación web *Single Page Application* (SPA) diseñada para el Área de Administración y Secretaría Académica del **IESP San Juan Bautista La Salle**. Automatiza la generación de documentos institucionales oficiales (**Constancias de Egresado** e **Informes / Oficios de Trámites**) en formatos **Word (`.docx`)** y **PDF**, procesamiento masivo desde **Excel (`.xlsx` → `.zip`)**, detección automática de etiquetas en plantillas personalizadas, respaldo portátil de documentos, Dashboard de métricas y módulo de Auditoría.
 
 ---
 
-## 🚀 Módulos Principales
+## Módulos Principales
 
 1. **Autenticación Institucional:** Portal de acceso con identidad visual institucional (`admin` / `admin2026`), persistencia de sesión y cierre seguro.
 2. **Generador Oficial en Vivo (A4):** Formularios dinámicos para *Constancia de Egresado* e *Informe / Oficio*, con concordancia automática de género (`Sr.` / `Srta.`), las 5 carreras oficiales (*Enfermería, Farmacia, Fisioterapia, Optometría, Prótesis Dental*) más escritura libre, vista previa A4 con control de Zoom (`80%`, `90%`, `100%`), impresión PDF limpia y descarga en `.docx` editable.
@@ -24,7 +24,7 @@
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 * **Frontend:** React 19, TypeScript, Vite 6, Tailwind CSS v4, Lucide React
 * **Backend & Base de Datos:** Node.js, Express 5, PostgreSQL (`pg`) con inicialización automática de esquema (`database/schema.sql`)
@@ -33,7 +33,7 @@
 
 ---
 
-## ⚡ Comandos Locales
+## Comandos Locales
 
 ```bash
 # Instalar dependencias
@@ -54,7 +54,7 @@ npm run build
 
 ---
 
-## 🌐 Despliegue en Render (Web Service + PostgreSQL)
+## Despliegue en Render (Web Service + PostgreSQL)
 
 El proyecto incluye [`render.yaml`](render.yaml) (Blueprint oficial de Render) para crear automáticamente el Web Service Node.js y la base de datos PostgreSQL conectada por `DATABASE_URL`:
 
