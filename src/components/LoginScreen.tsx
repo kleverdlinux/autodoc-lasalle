@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import Swal from 'sweetalert2';
 import {
   AlertCircle,
   ArrowRight,
@@ -44,17 +45,32 @@ function playSuccessChime() {
 }
 
 export function LoginScreen({ onLoginSuccess, sessionExpiredMessage }: LoginScreenProps) {
-  const [usuario, setUsuario] = useState('');
-  const [password, setPassword] = useState('');
+  const [usuario, setUsuario] = useState('admin');
+  const [password, setPassword] = useState('admin2026');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState<number | null>(null);
+  const hasShownDemoAlert = useRef(false);
+
+  useEffect(() => {
+    if (hasShownDemoAlert.current) return;
+    hasShownDemoAlert.current = true;
+    void Swal.fire({
+      title: 'Datos demo cargados',
+      html: 'Las credenciales de prueba ya están listas en el formulario.<br><br>Solo dele clic a <strong>"Ingresar al Sistema"</strong> para acceder.',
+      icon: 'info',
+      confirmButtonText: 'Entendido',
+      confirmButtonColor: '#002b59',
+      allowOutsideClick: true,
+    });
+  }, []);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (loadingProgress !== null) return;
+    if (Swal.isVisible()) Swal.close();
     setErrorMsg('');
 
     if (!verifyAdminCredentials(usuario, password)) {
